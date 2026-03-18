@@ -42,6 +42,49 @@ if menu == "Sustancias Puras":
     st.header("Análisis de Componentes Puros")
     modelo = st.selectbox("Modelo Matemático:", ["Chung et al.", "Chapman-Enskog", "Stiel y Thodos", "DIPPR"])
 
+    # --- INICIO DE BLOQUE INFORMATIVO AÑADIDO ---
+    with st.expander("📖 Ver Ecuación y Variables del Modelo", expanded=True):
+        if modelo == "Chung et al.":
+            st.latex(r"\mu = \frac{40.785 F_c \sqrt{M T}}{V_c^{2/3} \Omega_v}")
+            st.markdown("""
+            **Variables:**
+            * **μ**: Viscosidad dinámica calculada (en μP, luego convertida a μPa·s).
+            * **Fc**: Factor empírico que depende del factor acéntrico (ω) y el momento dipolar (μ_r).
+            * **M**: Masa molar del compuesto (g/mol).
+            * **T**: Temperatura del sistema (K).
+            * **Vc**: Volumen crítico (cm³/mol).
+            * **Ωv**: Integral de colisión (dependiente de la temperatura reducida).
+            """)
+        elif modelo == "Chapman-Enskog":
+            st.latex(r"\mu = \frac{26.69 \sqrt{M T}}{\sigma^2 \Omega_v}")
+            st.markdown("""
+            **Variables:**
+            * **μ**: Viscosidad dinámica calculada (en μP, luego convertida a μPa·s).
+            * **M**: Masa molar del compuesto (g/mol).
+            * **T**: Temperatura del sistema (K).
+            * **σ**: Diámetro de colisión de Lennard-Jones (Å).
+            * **Ωv**: Integral de colisión (dependiente de T y ε/κ).
+            """)
+        elif modelo == "Stiel y Thodos":
+            st.latex(r"\mu = \frac{N}{\xi} \quad \text{donde} \quad \xi = \frac{T_c^{1/6}}{M^{1/2} P_c^{2/3}}")
+            st.markdown("""
+            **Variables:**
+            * **μ**: Viscosidad dinámica (en cP, convertida a μPa·s).
+            * **N**: Factor de correlación basado en la temperatura reducida (Tr).
+            * **ξ (xi)**: Parámetro de grupo que relaciona propiedades críticas.
+            * **Tc**: Temperatura crítica (K).
+            * **Pc**: Presión crítica (atm).
+            """)
+        elif modelo == "DIPPR":
+            st.latex(r"\mu = \frac{A \cdot T^B}{1 + \frac{C}{T} + \frac{D}{T^2}}")
+            st.markdown("""
+            **Variables:**
+            * **μ**: Viscosidad dinámica empírica.
+            * **T**: Temperatura de operación (K).
+            * **A, B, C, D**: Coeficientes de regresión específicos de la base de datos DIPPR para el compuesto.
+            """)
+    # --- FIN DE BLOQUE INFORMATIVO AÑADIDO ---
+
     st.subheader("Entrada de Datos")
     c1, c2, c3 = st.columns(3)
     
@@ -192,6 +235,30 @@ if menu == "Sustancias Puras":
 elif menu == "Reglas de Mezclado":
     st.header("Estimación de Mezclas Multicomponentes")
     metodo = st.selectbox("Seleccione el Método:", ["Wilke", "Davidson"])
+    
+    # --- INICIO DE BLOQUE INFORMATIVO AÑADIDO ---
+    with st.expander("📖 Ver Ecuación y Variables de la Mezcla", expanded=True):
+        if metodo == "Wilke":
+            st.latex(r"\mu_m = \sum_{i=1}^n \frac{x_i \mu_i}{\sum_{j=1}^n x_j \Phi_{ij}} \quad \text{donde} \quad \Phi_{ij} = \frac{\left[1 + (\mu_i/\mu_j)^{1/2} (M_j/M_i)^{1/4}\right]^2}{\sqrt{8(1 + M_i/M_j)}}")
+            st.markdown("""
+            **Variables:**
+            * **μ_m**: Viscosidad total de la mezcla gaseosa.
+            * **xi, xj**: Fracciones molares de los componentes $i$ y $j$.
+            * **μi, μj**: Viscosidades individuales de los componentes $i$ y $j$.
+            * **Mi, Mj**: Masas molares de los componentes $i$ y $j$.
+            * **Φij**: Parámetro de interacción binaria de Wilke.
+            """)
+        elif metodo == "Davidson":
+            st.latex(r"\mu_m = \sum_{i=1}^n \frac{x_i \mu_i}{\sum_{j=1}^n x_j \Psi_{ij}} \quad \text{donde} \quad \Psi_{ij} = \sqrt{\frac{M_j}{M_i}}")
+            st.markdown("""
+            **Variables:**
+            * **μ_m**: Viscosidad total de la mezcla gaseosa.
+            * **xi, xj**: Fracciones molares de los componentes $i$ y $j$.
+            * **μi**: Viscosidad individual del componente $i$.
+            * **Mi, Mj**: Masas molares de los componentes $i$ y $j$.
+            * **Ψij**: Factor de interacción simplificado de Davidson (basado en el peso molecular).
+            """)
+    # --- FIN DE BLOQUE INFORMATIVO AÑADIDO ---
     
     st.write("Ingresa la fracción molar ($x_i$) y la viscosidad individual calculada ($\mu_i$) para cada gas.")
     
