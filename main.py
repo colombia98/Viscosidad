@@ -41,8 +41,9 @@ COMPUESTOS_LIQ_INFO = {
 if 'tabla_puras' not in st.session_state:
     st.session_state.tabla_puras = pd.DataFrame(columns=["Componente", "Modelo", "T (K)", "Exp (uPa.s)", "Calc (uPa.s)", "Error (%)"])
 
+# Aquí actualizamos las columnas para que el líquido también use uPa.s
 if 'tabla_puras_liq' not in st.session_state:
-    st.session_state.tabla_puras_liq = pd.DataFrame(columns=["Componente", "Modelo", "T (K)", "Exp (cP)", "Calc (cP)", "Error (%)"])
+    st.session_state.tabla_puras_liq = pd.DataFrame(columns=["Componente", "Modelo", "T (K)", "Exp (uPa.s)", "Calc (uPa.s)", "Error (%)"])
 
 # --- FUNCIONES MATEMÁTICAS (GASES) ---
 def omega_v(T_star):
@@ -184,7 +185,6 @@ if fase == "Gas (Cracking de Etano)":
                     mu_Pa_s = (a_dip * t_abs**b_dip) / (1 + c_dip/t_abs + d_dip/t_abs**2)
                     mu_c = mu_Pa_s * 1e6
 
-                # Cálculo de Error Porcentual Individual
                 error = abs(v_exp - mu_c) / v_exp * 100 if v_exp > 0 else 0.0
                 
                 nuevo = pd.DataFrame([{"Componente": comp, "Modelo": modelo, "T (K)": t_abs, "Exp (uPa.s)": v_exp, "Calc (uPa.s)": round(mu_c, 4), "Error (%)": round(error, 3)}])
@@ -196,7 +196,6 @@ if fase == "Gas (Cracking de Etano)":
             except Exception as e:
                 st.error(f"Error en los datos: {e}")
 
-        # --- TABLA Y DIAGRAMA DE DISPERSIÓN ---
         if not st.session_state.tabla_puras.empty:
             st.write("---")
             st.subheader("Memoria de Resultados y Validación")
@@ -333,42 +332,41 @@ elif fase == "Líquido (Nafta Pesada)":
         st.header("Análisis de Componentes Puros (Líquido)")
         modelo_liq = st.selectbox("Modelo Matemático (Líquidos):", ["Andrade", "Van Velzen et al.", "Orrick y Erbar", "Letsou y Stiel"])
 
-        # --- BLOQUE INFORMATIVO LÍQUIDOS ---
         with st.expander("📖 Ver Ecuación y Variables del Modelo Líquido", expanded=True):
             if modelo_liq == "Andrade":
-                st.latex(r"\ln \mu = A + \frac{B}{T}")
+                st.latex(r"\ln \mu_{cP} = A + \frac{B}{T}")
                 st.markdown("""
                 **Variables:**
-                * **μ**: Viscosidad dinámica del líquido (generalmente en cP o mPa·s).
+                * **μ_cP**: Viscosidad dinámica nativa del modelo en centipoise (luego multiplicada x1000 para obtener μPa·s).
                 * **T**: Temperatura absoluta (K).
                 * **A, B**: Constantes empíricas específicas del compuesto.
                 """)
             elif modelo_liq == "Van Velzen et al.":
-                st.latex(r"\log_{10} \mu = B \left( \frac{1}{T} - \frac{1}{T_0} \right)")
+                st.latex(r"\log_{10} \mu_{cP} = B \left( \frac{1}{T} - \frac{1}{T_0} \right)")
                 st.markdown("""
                 **Variables:**
-                * **μ**: Viscosidad dinámica del líquido (cP).
+                * **μ_cP**: Viscosidad nativa en centipoise (convertida internamente a μPa·s).
                 * **T**: Temperatura absoluta (K).
-                * **B, T_0**: Parámetros correlacionales del componente (o derivados de contribución de grupos).
+                * **B, T_0**: Parámetros correlacionales del componente.
                 """)
             elif modelo_liq == "Orrick y Erbar":
-                st.latex(r"\ln \left( \frac{\mu}{\rho M} \right) = A + \frac{B}{T}")
+                st.latex(r"\ln \left( \frac{\mu_{cP}}{\rho M} \right) = A + \frac{B}{T}")
                 st.markdown("""
                 **Variables:**
-                * **μ**: Viscosidad dinámica del líquido (cP).
+                * **μ_cP**: Viscosidad nativa en centipoise (convertida a μPa·s).
                 * **ρ**: Densidad del líquido a la temperatura dada (g/cm³).
                 * **M**: Masa molar del componente (g/mol).
                 * **T**: Temperatura del sistema (K).
                 * **A, B**: Constantes correlacionales del modelo.
                 """)
             elif modelo_liq == "Letsou y Stiel":
-                st.latex(r"\mu \xi = (\mu \xi)^{(0)} + \omega (\mu \xi)^{(1)}")
+                st.latex(r"\mu_{cP} \xi = (\mu \xi)^{(0)} + \omega (\mu \xi)^{(1)}")
                 st.latex(r"(\mu \xi)^{(0)} \times 10^3 = 2.648 - 3.725 T_r + 1.309 T_r^2")
                 st.latex(r"(\mu \xi)^{(1)} \times 10^3 = 7.425 - 13.39 T_r + 5.933 T_r^2")
                 st.latex(r"\xi = \frac{T_c^{1/6}}{M^{1/2} P_c^{2/3}}")
                 st.markdown("""
                 **Variables:**
-                * **μ**: Viscosidad dinámica del líquido (cP). *(Usado para líquidos saturados)*
+                * **μ_cP**: Viscosidad nativa en centipoise (convertida a μPa·s).
                 * **Tr**: Temperatura reducida ($T / T_c$).
                 * **ω**: Factor acéntrico.
                 * **Tc, Pc, M**: Propiedades críticas y masa molar.
@@ -380,7 +378,8 @@ elif fase == "Líquido (Nafta Pesada)":
         with cl1:
             comp_liq = st.selectbox("Seleccione Compuesto:", list(COMPUESTOS_LIQ_INFO.keys()))
             t_abs_liq = st.number_input("Temperatura de Operación (K):", value=298.15)
-            v_exp_liq = st.number_input("Viscosidad Experimental (cP / mPa·s):", value=0.0000, format="%.4f")
+            # Solicitamos directamente el dato experimental en uPa.s
+            v_exp_liq = st.number_input("Viscosidad Experimental (μPa·s):", value=0.0000, format="%.4f")
         
         with cl2:
             m_in_liq = st.number_input("Masa Molar (M):", value=COMPUESTOS_LIQ_INFO[comp_liq]["M"], format="%.4f")
@@ -403,25 +402,28 @@ elif fase == "Líquido (Nafta Pesada)":
 
         if st.button("Ejecutar Cálculo Líquido"):
             try:
-                mu_c_liq = 0.0
+                mu_cP = 0.0 # Guardará temporalmente el valor en cP
                 
                 if modelo_liq == "Andrade":
-                    mu_c_liq = np.exp(a_cte + (b_cte / t_abs_liq))
-                    st.markdown(f"<div class='intermedio-liq'><b>Cálculo Andrade:</b> μ = exp({a_cte} + {b_cte}/{t_abs_liq}) = <b>{mu_c_liq:.4f} cP</b></div>", unsafe_allow_html=True)
+                    mu_cP = np.exp(a_cte + (b_cte / t_abs_liq))
+                    mu_c_liq = mu_cP * 1000 # Conversión a uPa.s
+                    st.markdown(f"<div class='intermedio-liq'><b>Cálculo Nativo (Andrade):</b> μ = exp({a_cte} + {b_cte}/{t_abs_liq}) = <b>{mu_cP:.4f} cP</b><br><b>Conversión:</b> {mu_cP:.4f} cP * 1000 = <b>{mu_c_liq:.2f} μPa·s</b></div>", unsafe_allow_html=True)
                     
                 elif modelo_liq == "Van Velzen et al.":
                     if t0_vv == 0: st.error("T0 no puede ser cero.")
                     else:
                         exponente = b_vv * ((1/t_abs_liq) - (1/t0_vv))
-                        mu_c_liq = 10**(exponente)
-                        st.markdown(f"<div class='intermedio-liq'><b>Cálculo Van Velzen:</b> log10(μ) = {exponente:.4f} → μ = <b>{mu_c_liq:.4f} cP</b></div>", unsafe_allow_html=True)
+                        mu_cP = 10**(exponente)
+                        mu_c_liq = mu_cP * 1000 # Conversión a uPa.s
+                        st.markdown(f"<div class='intermedio-liq'><b>Cálculo Nativo (Van Velzen):</b> log10(μ) = {exponente:.4f} → μ = <b>{mu_cP:.4f} cP</b><br><b>Conversión:</b> {mu_cP:.4f} cP * 1000 = <b>{mu_c_liq:.2f} μPa·s</b></div>", unsafe_allow_html=True)
                 
                 elif modelo_liq == "Orrick y Erbar":
                     if rho_liq == 0: st.error("La densidad no puede ser cero.")
                     else:
                         termino = np.exp(a_cte + (b_cte / t_abs_liq))
-                        mu_c_liq = rho_liq * m_in_liq * termino
-                        st.markdown(f"<div class='intermedio-liq'><b>Cálculo Orrick-Erbar:</b> μ = ({rho_liq} * {m_in_liq}) * exp({a_cte} + {b_cte}/{t_abs_liq}) = <b>{mu_c_liq:.4f} cP</b></div>", unsafe_allow_html=True)
+                        mu_cP = rho_liq * m_in_liq * termino
+                        mu_c_liq = mu_cP * 1000 # Conversión a uPa.s
+                        st.markdown(f"<div class='intermedio-liq'><b>Cálculo Nativo (Orrick-Erbar):</b> μ = ({rho_liq} * {m_in_liq}) * exp({a_cte} + {b_cte}/{t_abs_liq}) = <b>{mu_cP:.4f} cP</b><br><b>Conversión:</b> {mu_cP:.4f} cP * 1000 = <b>{mu_c_liq:.2f} μPa·s</b></div>", unsafe_allow_html=True)
                 
                 elif modelo_liq == "Letsou y Stiel":
                     if tc_liq == 0 or pc_liq == 0: st.error("Tc y Pc deben ser mayores a cero.")
@@ -433,22 +435,23 @@ elif fase == "Líquido (Nafta Pesada)":
                         mu_xi_1 = (7.425 - 13.39*tr_liq + 5.933*(tr_liq**2)) / 1000
                         
                         mu_xi_total = mu_xi_0 + w_liq * mu_xi_1
-                        mu_c_liq = mu_xi_total / xi_liq
+                        mu_cP = mu_xi_total / xi_liq
+                        mu_c_liq = mu_cP * 1000 # Conversión a uPa.s
                         
                         st.markdown(f"""<div class='intermedio-liq'>
                         <b>🔢 Auditoría de Ecuaciones (Letsou y Stiel):</b><br><br>
                         Tr = {t_abs_liq} / {tc_liq} = <b>{tr_liq:.4f}</b><br>
                         ξ = <b>{xi_liq:.5f}</b><br>
                         (μ·ξ)^(0) = <b>{mu_xi_0:.6f}</b> | (μ·ξ)^(1) = <b>{mu_xi_1:.6f}</b><br>
-                        μ = ({mu_xi_0:.6f} + {w_liq}*{mu_xi_1:.6f}) / {xi_liq:.5f} = <b>{mu_c_liq:.4f} cP</b>
+                        μ (nativo) = ({mu_xi_0:.6f} + {w_liq}*{mu_xi_1:.6f}) / {xi_liq:.5f} = <b>{mu_cP:.4f} cP</b><br>
+                        <b>Conversión:</b> {mu_cP:.4f} cP * 1000 = <b>{mu_c_liq:.2f} μPa·s</b>
                         </div>""", unsafe_allow_html=True)
 
-                # Cálculo de Error Porcentual Individual
                 error_liq = abs(v_exp_liq - mu_c_liq) / v_exp_liq * 100 if v_exp_liq > 0 else 0.0
                 
-                nuevo_liq = pd.DataFrame([{"Componente": comp_liq, "Modelo": modelo_liq, "T (K)": t_abs_liq, "Exp (cP)": v_exp_liq, "Calc (cP)": round(mu_c_liq, 4), "Error (%)": round(error_liq, 3)}])
+                nuevo_liq = pd.DataFrame([{"Componente": comp_liq, "Modelo": modelo_liq, "T (K)": t_abs_liq, "Exp (uPa.s)": v_exp_liq, "Calc (uPa.s)": round(mu_c_liq, 4), "Error (%)": round(error_liq, 3)}])
                 st.session_state.tabla_puras_liq = pd.concat([st.session_state.tabla_puras_liq, nuevo_liq], ignore_index=True)
-                st.success(f"✅ Cálculo finalizado: {round(mu_c_liq, 4)} cP (Error: {round(error_liq, 2)}%)")
+                st.success(f"✅ Cálculo finalizado: {round(mu_c_liq, 4)} μPa·s (Error: {round(error_liq, 2)}%)")
                 
             except Exception as e:
                 st.error(f"Error matemático en el cálculo: {e}")
@@ -460,14 +463,14 @@ elif fase == "Líquido (Nafta Pesada)":
             st.dataframe(st.session_state.tabla_puras_liq, use_container_width=True)
             
             if st.button("Limpiar Memoria Líquida"):
-                st.session_state.tabla_puras_liq = pd.DataFrame(columns=["Componente", "Modelo", "T (K)", "Exp (cP)", "Calc (cP)", "Error (%)"])
+                st.session_state.tabla_puras_liq = pd.DataFrame(columns=["Componente", "Modelo", "T (K)", "Exp (uPa.s)", "Calc (uPa.s)", "Error (%)"])
                 st.rerun()
 
-            df_valid_liq = st.session_state.tabla_puras_liq[st.session_state.tabla_puras_liq["Exp (cP)"] > 0]
+            df_valid_liq = st.session_state.tabla_puras_liq[st.session_state.tabla_puras_liq["Exp (uPa.s)"] > 0]
             
             if len(df_valid_liq) > 0:
-                y_exp_l = df_valid_liq["Exp (cP)"].astype(float).values
-                y_calc_l = df_valid_liq["Calc (cP)"].astype(float).values
+                y_exp_l = df_valid_liq["Exp (uPa.s)"].astype(float).values
+                y_calc_l = df_valid_liq["Calc (uPa.s)"].astype(float).values
                 nombres_l = df_valid_liq["Componente"].values
                 
                 mape_l = np.mean(np.abs((y_exp_l - y_calc_l) / y_exp_l)) * 100
@@ -500,8 +503,8 @@ elif fase == "Líquido (Nafta Pesada)":
                 ))
                 fig_l.update_layout(
                     title="Diagrama de Dispersión: Viscosidad Líquida (Nafta)",
-                    xaxis_title="Viscosidad Experimental (cP)",
-                    yaxis_title="Viscosidad Calculada (cP)",
+                    xaxis_title="Viscosidad Experimental (μPa·s)",
+                    yaxis_title="Viscosidad Calculada (μPa·s)",
                     template="plotly_white"
                 )
                 st.plotly_chart(fig_l, use_container_width=True)
@@ -515,31 +518,31 @@ elif fase == "Líquido (Nafta Pesada)":
                 st.latex(r"\mu_m = \left( \sum_{i=1}^n x_i \mu_i^{1/3} \right)^3")
                 st.markdown("""
                 **Variables:**
-                * **μ_m**: Viscosidad total de la mezcla líquida.
+                * **μ_m**: Viscosidad total de la mezcla líquida (μPa·s).
                 * **x_i**: Fracción molar del componente *i*.
-                * **μ_i**: Viscosidad del componente puro *i*.
+                * **μ_i**: Viscosidad del componente puro *i* (μPa·s).
                 """)
             elif metodo_liq == "Grunberg y Nissan":
                 st.latex(r"\ln \mu_m = \sum_{i=1}^n x_i \ln \mu_i + \sum_{i \neq j} x_i x_j G_{ij}")
                 st.markdown("""
                 **Variables:**
-                * **μ_m**: Viscosidad total de la mezcla líquida.
+                * **μ_m**: Viscosidad total de la mezcla líquida (μPa·s).
                 * **x_i**: Fracción molar del componente *i*.
-                * **μ_i**: Viscosidad del componente puro *i*.
-                * **G_ij**: Parámetro de interacción (para fines prácticos e ideales, se asume $G_{ij} = 0$, reduciéndose a la regla de Arrhenius).
+                * **μ_i**: Viscosidad del componente puro *i* (μPa·s).
+                * **G_ij**: Parámetro de interacción (para mezcla ideal se asume $G_{ij} = 0$).
                 """)
         
-        st.write("Ingresa la fracción molar ($x_i$) y la viscosidad individual calculada ($\mu_i$) para cada componente de la Nafta.")
+        st.write("Ingresa la fracción molar ($x_i$) y la viscosidad individual calculada ($\mu_i$) en μPa·s para cada componente de la Nafta.")
         
         data_init_liq = []
         for c in COMPUESTOS_LIQ_INFO:
-            data_init_liq.append({"Componente": c, "x_i": 0.0, "mu_i (cP)": 0.0})
+            data_init_liq.append({"Componente": c, "x_i": 0.0, "mu_i (uPa.s)": 0.0})
         
         df_mezcla_liq = st.data_editor(pd.DataFrame(data_init_liq), num_rows="fixed", use_container_width=True)
         
         if st.button("Calcular Viscosidad de la Mezcla Líquida"):
             xi_l = df_mezcla_liq["x_i"].astype(float).values
-            mui_l = df_mezcla_liq["mu_i (cP)"].astype(float).values
+            mui_l = df_mezcla_liq["mu_i (uPa.s)"].astype(float).values
             mu_m_l = 0.0
             
             suma_xi_l = sum(xi_l)
@@ -559,9 +562,8 @@ elif fase == "Líquido (Nafta Pesada)":
                     for i in range(len(xi_l)):
                         if mui_l[i] > 0 and xi_l[i] > 0:
                             suma_ln_mu += xi_l[i] * np.log(mui_l[i])
-                    # Asumiendo mezcla ideal (Gij = 0)
                     mu_m_l = np.exp(suma_ln_mu)
 
-                st.success(f"Viscosidad Total de la Mezcla Líquida ({metodo_liq}): {mu_m_l:.4f} cP")
+                st.success(f"Viscosidad Total de la Mezcla Líquida ({metodo_liq}): {mu_m_l:.4f} μPa·s")
             except Exception as e:
                 st.error(f"Error matemático al evaluar la regla de mezclado. Detalle: {e}")
