@@ -42,7 +42,7 @@ if menu == "Sustancias Puras":
     st.header("Análisis de Componentes Puros")
     modelo = st.selectbox("Modelo Matemático:", ["Chung et al.", "Chapman-Enskog", "Stiel y Thodos", "DIPPR"])
 
-    # --- INICIO DE BLOQUE INFORMATIVO AÑADIDO ---
+    # --- INICIO DE BLOQUE INFORMATIVO ---
     with st.expander("📖 Ver Ecuación y Variables del Modelo", expanded=True):
         if modelo == "Chung et al.":
             st.latex(r"\mu = \frac{40.785 F_c \sqrt{M T}}{V_c^{2/3} \Omega_v}")
@@ -66,14 +66,17 @@ if menu == "Sustancias Puras":
             * **Ωv**: Integral de colisión (dependiente de T y ε/κ).
             """)
         elif modelo == "Stiel y Thodos":
-            st.latex(r"\mu = \frac{N}{\xi} \quad \text{donde} \quad \xi = \frac{T_c^{1/6}}{M^{1/2} P_c^{2/3}}")
+            st.latex(r"\mu \xi = 34 \times 10^{-5} T_r^{0.94} \quad \text{para } T_r \leq 1.5")
+            st.latex(r"\mu \xi = 17.78 \times 10^{-5} (4.58 T_r - 1.67)^{0.625} \quad \text{para } T_r > 1.5")
+            st.latex(r"\xi = \frac{T_c^{1/6}}{M^{1/2} P_c^{2/3}}")
             st.markdown("""
             **Variables:**
-            * **μ**: Viscosidad dinámica (en cP, convertida a μPa·s).
-            * **N**: Factor de correlación basado en la temperatura reducida (Tr).
-            * **ξ (xi)**: Parámetro de grupo que relaciona propiedades críticas.
+            * **μ**: Viscosidad dinámica del gas a baja presión (en cP, convertida luego a μPa·s).
+            * **Tr**: Temperatura reducida ($T / T_c$).
+            * **ξ**: Parámetro de correlación de propiedades críticas.
             * **Tc**: Temperatura crítica (K).
             * **Pc**: Presión crítica (atm).
+            * **M**: Masa molar (g/mol).
             """)
         elif modelo == "DIPPR":
             st.latex(r"\mu = \frac{A \cdot T^B}{1 + \frac{C}{T} + \frac{D}{T^2}}")
@@ -83,7 +86,7 @@ if menu == "Sustancias Puras":
             * **T**: Temperatura de operación (K).
             * **A, B, C, D**: Coeficientes de regresión específicos de la base de datos DIPPR para el compuesto.
             """)
-    # --- FIN DE BLOQUE INFORMATIVO AÑADIDO ---
+    # --- FIN DE BLOQUE INFORMATIVO ---
 
     st.subheader("Entrada de Datos")
     c1, c2, c3 = st.columns(3)
@@ -153,7 +156,7 @@ if menu == "Sustancias Puras":
                 xi = (tc**(1/6)) / (np.sqrt(m_in) * (pc**(2/3)))
                 mu_cP = N / xi
                 mu_c = mu_cP * 1000
-                st.markdown(f"<div class='intermedio'><b>Tr</b> = {tr:.4f} | <b>N</b> = {N:.6e} | <b>ξ</b> = {xi:.4f}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='intermedio'><b>Tr</b> = {tr:.4f} | <b>N (μ·ξ)</b> = {N:.6e} | <b>ξ</b> = {xi:.4f}</div>", unsafe_allow_html=True)
 
             elif modelo == "DIPPR":
                 mu_Pa_s = (a_dip * t_abs**b_dip) / (1 + c_dip/t_abs + d_dip/t_abs**2)
@@ -236,7 +239,7 @@ elif menu == "Reglas de Mezclado":
     st.header("Estimación de Mezclas Multicomponentes")
     metodo = st.selectbox("Seleccione el Método:", ["Wilke", "Davidson"])
     
-    # --- INICIO DE BLOQUE INFORMATIVO AÑADIDO ---
+    # --- INICIO DE BLOQUE INFORMATIVO ---
     with st.expander("📖 Ver Ecuación y Variables de la Mezcla", expanded=True):
         if metodo == "Wilke":
             st.latex(r"\mu_m = \sum_{i=1}^n \frac{x_i \mu_i}{\sum_{j=1}^n x_j \Phi_{ij}} \quad \text{donde} \quad \Phi_{ij} = \frac{\left[1 + (\mu_i/\mu_j)^{1/2} (M_j/M_i)^{1/4}\right]^2}{\sqrt{8(1 + M_i/M_j)}}")
@@ -258,7 +261,7 @@ elif menu == "Reglas de Mezclado":
             * **Mi, Mj**: Masas molares de los componentes $i$ y $j$.
             * **Ψij**: Factor de interacción simplificado de Davidson (basado en el peso molecular).
             """)
-    # --- FIN DE BLOQUE INFORMATIVO AÑADIDO ---
+    # --- FIN DE BLOQUE INFORMATIVO ---
     
     st.write("Ingresa la fracción molar ($x_i$) y la viscosidad individual calculada ($\mu_i$) para cada gas.")
     
