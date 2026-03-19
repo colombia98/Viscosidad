@@ -168,6 +168,71 @@ if menu == "Sustancias Puras":
             nuevo = pd.DataFrame([{"Componente": comp, "Modelo": modelo, "T (K)": t_abs, "Exp (uPa.s)": v_exp, "Calc (uPa.s)": round(mu_c, 4), "Error (%)": round(error, 3)}])
             st.session_state.tabla_puras = pd.concat([st.session_state.tabla_puras, nuevo], ignore_index=True)
             st.success(f"✅ Cálculo finalizado: {round(mu_c, 4)} μPa·s (Error: {round(error, 2)}%)")
+
+            # --- NUEVO BLOQUE: GRÁFICA T vs VISCOSIDAD ---
+            st.write("---")
+            st.subheader(f"Curva de Comportamiento: Viscosidad vs Temperatura ({comp})")
+            st.info("Esta gráfica proyecta el modelo matemático seleccionado en un rango de ±100 K respecto a tu temperatura de operación.")
+            
+            # Generamos un rango de temperatura (evitando temperaturas negativas o cero)
+            t_rango = np.linspace(max(50, t_abs - 100), t_abs + 100, 50)
+            mu_rango = []
+            
+            # Calculamos la viscosidad para cada punto de temperatura en el rango
+            for t_i in t_rango:
+                try:
+                    if modelo == "Chung et al.":
+                        t_star_i = 1.2593 * (t_i / tc)
+                        om_i = omega_v(t_star_i)
+                        mu_uP_i = (40.785 * fc * np.sqrt(m_in * t_i)) / (vc**(2/3) * om_i)
+                        mu_rango.append(mu_uP_i / 10)
+                    elif modelo == "Chapman-Enskog":
+                        t_star_i = t_i / eps_k
+                        om_i = omega_v(t_star_i)
+                        mu_uP_i = (26.69 * np.sqrt(m_in * t_i)) / (sigma**2 * om_i)
+                        mu_rango.append(mu_uP_i / 10)
+                    elif modelo == "Stiel y Thodos":
+                        tr_i = t_i / tc
+                        if tr_i > 1.5:
+                            N_i = 1.778e-4 * (4.58 * tr_i - 1.67)**0.625
+                        else:
+                            N_i = 3.4e-4 * (tr_i**0.94)
+                        mu_rango.append((N_i / xi) * 1000)
+                    elif modelo == "DIPPR":
+                        mu_Pa_s_i = (a_dip * t_i**b_dip) / (1 + c_dip/t_i + d_dip/t_i**2)
+                        mu_rango.append(mu_Pa_s_i * 1e6)
+                except:
+                    mu_rango.append(None) # Evita que se rompa si hay divisiones por cero en el rango
+            
+            # Construcción de la gráfica
+            fig_curva = go.Figure()
+            
+            # Línea de la curva del modelo
+            fig_curva.add_trace(go.Scatter(
+                x=t_rango, y=mu_rango, 
+                mode='lines', 
+                name=f'Proyección ({modelo})', 
+                line=dict(color='#28a745', width=3)
+            ))
+            
+            # Punto exacto calculado por el usuario
+            fig_curva.add_trace(go.Scatter(
+                x=[t_abs], y=[mu_c], 
+                mode='markers', 
+                name='Punto de Operación', 
+                marker=dict(color='red', size=12, symbol='star', line=dict(color='black', width=1))
+            ))
+            
+            fig_curva.update_layout(
+                xaxis_title="Temperatura (K)",
+                yaxis_title="Viscosidad Calculada (μPa·s)",
+                template="plotly_white",
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            
+            st.plotly_chart(fig_curva, use_container_width=True)
+            # --- FIN DEL NUEVO BLOQUE ---
             
         except ZeroDivisionError:
             st.error("Error: División por cero. Verifica que parámetros críticos como Tc, Vc, o Masa Molar no sean 0.")
